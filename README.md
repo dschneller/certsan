@@ -1,4 +1,4 @@
-# certsan: Certificate Santiy Checker
+# certsan: Certificate Sanity Checker
 
 This is a little helper script I wrote to help me verify that certificates
 and private keys I get sent by other people actually fit together. Especially
