@@ -1,15 +1,71 @@
-#!/bin/bash
+#!/usr/bin/ruby
 
-crt=${1}
-key=${2}
-csr=${3}
+require 'optparse'
+require 'digest'
 
-[[ -f ${crt} ]] && m_crt=$(openssl x509 -noout -modulus -in ${crt} | openssl md5)
-[[ -f ${key} ]] && m_key=$(openssl rsa  -noout -modulus -in ${key} | openssl md5)
-[[ -f ${csr} ]] && m_csr=$(openssl req  -noout -modulus -in ${csr} | openssl md5)
+$options = {
+  :verbose => false
+}
 
-echo "Certificate Modulus: ${m_crt}"
-echo "Key Modulus        : ${m_key}"
-echo "CSR Modulus        : ${m_csr}"
+opt_parser = OptionParser.new do |opt|
+  opt.banner = "Usage: certsan OPTIONS"
+  opt.on("-c","--crt CRTFILE", "Certificate (CRT) file (path)") do |p|
+    $options[:crt] = p
+  end
+  opt.on("-k","--key KEYFILE", "Key file (path)") do |p|
+    $options[:key] = p
+  end
+  opt.on("-r","--csr CSRFILE", "[Optional] Certificate Signing Request (CSR) file (path)") do |p|
+    $options[:csr] = p
+  end
+  opt.on("-v", "--verbose", "Display more stuff.") do |p|
+    $options[:verbose] = p
+  end
+  opt.separator ""
+  opt.separator "Common options:"
 
-[[ ${m_crt} == ${m_key} ]]
+  opt.on_tail("-h","--help", "Show this message") do
+    puts opt
+    exit
+  end
+end
+
+opt_parser.parse!
+
+if $options[:crt].nil? || $options[:key].nil?
+  STDERR.puts "Need at least certificate and key to check. Use --help for details."
+  exit 1
+end
+
+if not File.readable?($options[:crt])
+  STDERR.puts "Certificate file #{$options[:crt]} not readable. Aborting."
+  exit 1
+end
+
+if not File.readable?($options[:key])
+  STDERR.puts "Key file #{$options[:key]} not readable. Aborting."
+  exit 1
+end
+
+if $options[:csr] and not File.readable?($options[:csr])
+  STDERR.puts "Signing Request file #{$options[:csr]} not readable. Aborting."
+  exit 1
+end
+
+$m_crt = `openssl x509 -noout -modulus -in "#{$options[:crt]}"`
+$m_key = `openssl rsa  -noout -modulus -in "#{$options[:key]}"`
+$m_csr = `openssl req  -noout -modulus -in "#{$options[:csr]}"` unless $options[:csr].nil?
+
+$everything_ok = $m_crt == $m_key
+$everything_ok &= $m_crt == $m_csr unless $m_csr.nil?
+
+if $options[:verbose]
+  puts "Certificate Modulus (md5): #{Digest::MD5.hexdigest $m_crt}"
+  puts "Key Modulus         (md5): #{Digest::MD5.hexdigest $m_key}"
+  puts "CSR Modulus         (md5): #{Digest::MD5.hexdigest $m_csr}" unless $m_csr.nil?
+  puts $everything_ok ? "SANITY CHECK OK" : "SANITY CHECK FAILED!"
+end
+
+
+exit $everything_ok
+
