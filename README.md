@@ -24,7 +24,7 @@ Key and certificate files are mandatory. The CSR is optional. If it is provided
 it must match the key and certificate modulus.
 
 ```
-➜  certsan -v
+➜  certsan -h
 ```
 ```
 Usage: certsan OPTIONS
